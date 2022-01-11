@@ -289,11 +289,7 @@ impl super::Queue {
                     }
                 }
                 gl.bind_buffer(copy_src_target, None);
-                if is_index_buffer_only_element_dst {
-                    gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, self.current_index_buffer);
-                } else {
-                    gl.bind_buffer(copy_dst_target, None);
-                }
+                gl.bind_buffer(copy_dst_target, None);
             }
             C::CopyTextureToTexture {
                 src,
