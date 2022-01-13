@@ -238,20 +238,20 @@ impl super::Queue {
                 dst_target,
                 copy,
             } => {
-                let copy_src_target = glow::COPY_READ_BUFFER;
-                let is_index_buffer_only_element_dst = !self
+                let no_index_buffer_role_change = !self
                     .shared
                     .private_caps
-                    .contains(super::PrivateCapabilities::INDEX_BUFFER_ROLE_CHANGE)
-                    && dst_target == glow::ELEMENT_ARRAY_BUFFER
-                    || src_target == glow::ELEMENT_ARRAY_BUFFER;
+                    .contains(super::PrivateCapabilities::INDEX_BUFFER_ROLE_CHANGE);
 
-                // WebGL not allowed to copy data from other targets to element buffer and can't copy element data to other buffers
-                let copy_dst_target = if is_index_buffer_only_element_dst {
-                    glow::ELEMENT_ARRAY_BUFFER
-                } else {
-                    glow::COPY_WRITE_BUFFER
+                let restore_index_buffer = match (no_index_buffer_role_change, src.raw, dst.raw) {
+                    (true, Some(buf), _) if src_target == glow::ELEMENT_ARRAY_BUFFER => Some(buf),
+                    (true, _, Some(buf)) if dst_target == glow::ELEMENT_ARRAY_BUFFER => Some(buf),
+                    _ => None,
                 };
+
+                let copy_src_target = glow::COPY_READ_BUFFER;
+                let copy_dst_target = glow::COPY_WRITE_BUFFER;
+
                 let size = copy.size.get() as usize;
                 match (src.raw, dst.raw) {
                     (Some(ref src), Some(ref dst)) => {
@@ -288,11 +288,12 @@ impl super::Queue {
                         todo!()
                     }
                 }
+
                 gl.bind_buffer(copy_src_target, None);
-                if is_index_buffer_only_element_dst {
-                    gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, self.current_index_buffer);
-                } else {
-                    gl.bind_buffer(copy_dst_target, None);
+                gl.bind_buffer(copy_dst_target, None);
+
+                if restore_index_buffer.is_some() {
+                    gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, restore_index_buffer);
                 }
             }
             C::CopyTextureToTexture {
